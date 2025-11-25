@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: Seguridad en Sistemas Distribuidos</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState } = React;
+        const Lock = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
+        const Unlock = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>;
+        const Key = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>;
+        const Shield = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/></svg>;
+        const AlertCircle = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>;
+        const CheckCircle = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+        const Send = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>;
+        const User = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+
+        const DistributedSecurityDemo = () => {
+          const [activeTab, setActiveTab] = useState('authentication');
+          const [message, setMessage] = useState('');
+          const [encryptedMessage, setEncryptedMessage] = useState('');
+          const [decryptedMessage, setDecryptedMessage] = useState('');
+          const [password, setPassword] = useState('');
+          const [authStatus, setAuthStatus] = useState(null);
+          const [sslStep, setSslStep] = useState(0);
+          const [dhValues, setDhValues] = useState(null);
+
+          const simpleEncrypt = (text, key) => {
+            return btoa(text + ':' + key);
+          };
+
+          const simpleDecrypt = (encrypted, key) => {
+            try {
+              const decoded = atob(encrypted);
+              const [text, storedKey] = decoded.split(':');
+              return storedKey === key ? text : null;
+            } catch {
+              return null;
+            }
+          };
+
+          const simulateDH = () => {
+            const g = 5;
+            const n = 23;
+            const aliceSecret = Math.floor(Math.random() * 10) + 1;
+            const bobSecret = Math.floor(Math.random() * 10) + 1;
+            
+            const alicePublic = Math.pow(g, aliceSecret) % n;
+            const bobPublic = Math.pow(g, bobSecret) % n;
+            
+            const aliceShared = Math.pow(bobPublic, aliceSecret) % n;
+            const bobShared = Math.pow(alicePublic, bobSecret) % n;
+            
+            setDhValues({
+              g, n,
+              aliceSecret, bobSecret,
+              alicePublic, bobPublic,
+              aliceShared, bobShared
+            });
+          };
+
+          const handleEncrypt = () => {
+            if (message) {
+              const key = 'shared-secret-key';
+              const encrypted = simpleEncrypt(message, key);
+              setEncryptedMessage(encrypted);
+            }
+          };
+
+          const handleDecrypt = () => {
+            if (encryptedMessage) {
+              const key = 'shared-secret-key';
+              const decrypted = simpleDecrypt(encryptedMessage, key);
+              setDecryptedMessage(decrypted || 'Error: Clave incorrecta');
+            }
+          };
+
+          const handlePasswordAuth = () => {
+            const correctPassword = 'SecurePass123';
+            if (password === correctPassword) {
+              setAuthStatus('success');
+            } else {
+              setAuthStatus('failed');
+            }
+            setTimeout(() => setAuthStatus(null), 3000);
+          };
+
+          const nextSSLStep = () => {
+            setSslStep((prev) => (prev + 1) % 6);
+          };
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+              <div className="max-w-6xl mx-auto">
+                <div className="bg-white rounded-lg shadow-xl p-8 mb-8">
+                  <h1 className="text-4xl font-bold text-indigo-900 mb-4 flex items-center gap-3">
+                    <Shield />
+                    Seguridad en Sistemas Distribuidos
+                  </h1>
+                  <p className="text-gray-600 text-lg">
+                    Explora conceptos clave de autenticación, cifrado y SSL/TLS de forma interactiva
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+                  <div className="flex border-b flex-wrap">
+                    {['authentication', 'encryption', 'diffie-hellman', 'ssl'].map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`flex-1 py-4 px-6 font-semibold transition-colors min-w-[150px] ${
+                          activeTab === tab
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {tab === 'authentication' && '🔐 Autenticación'}
+                        {tab === 'encryption' && '🔒 Cifrado'}
+                        {tab === 'diffie-hellman' && '🔑 Diffie-Hellman'}
+                        {tab === 'ssl' && '🌐 SSL/TLS'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="p-8">
+                    {activeTab === 'authentication' && (
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                          Autenticación con Contraseña
+                        </h2>
+                        <p className="text-gray-600 mb-6">
+                          Simula cómo un usuario se autentica en un sistema remoto usando contraseña.
+                          La contraseña correcta es: <code className="bg-gray-100 px-2 py-1 rounded">SecurePass123</code>
+                        </p>
+
+                        <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 mb-6">
+                          <div className="flex items-center gap-4 mb-4 flex-wrap">
+                            <User className="w-12 h-12 text-blue-600" />
+                            <div className="flex-1 min-w-[200px]">
+                              <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Ingresa tu contraseña"
+                                className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:outline-none focus:border-blue-500"
+                              />
+                            </div>
+                            <button
+                              onClick={handlePasswordAuth}
+                              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                            >
+                              <Send />
+                              Autenticar
+                            </button>
+                          </div>
+
+                          {authStatus && (
+                            <div className={`flex items-center gap-2 p-4 rounded-lg ${
+                              authStatus === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {authStatus === 'success' ? (
+                                <>
+                                  <CheckCircle />
+                                  <span className="font-semibold">✓ Autenticación exitosa</span>
+                                </>
+                              ) : (
+                                <>
+                                  <AlertCircle />
+                                  <span className="font-semibold">✗ Contraseña incorrecta</span>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                          <p className="text-sm text-gray-700">
+                            <strong>💡 Concepto:</strong> En sistemas distribuidos, las contraseñas deben transmitirse
+                            cifradas sobre la red. SSL/TLS proporciona este cifrado automáticamente.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeTab === 'encryption' && (
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                          Cifrado y Descifrado Simétrico
+                        </h2>
+                        <p className="text-gray-600 mb-6">
+                          Visualiza cómo se cifra un mensaje con una clave compartida y cómo solo quien tiene
+                          la clave puede descifrarlo.
+                        </p>
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <div className="bg-green-50 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold text-green-800 mb-4 flex items-center gap-2">
+                              <Lock />
+                              Cifrar Mensaje
+                            </h3>
+                            <textarea
+                              value={message}
+                              onChange={(e) => setMessage(e.target.value)}
+                              placeholder="Escribe un mensaje secreto..."
+                              className="w-full px-4 py-3 border-2 border-green-300 rounded-lg mb-4 h-24 resize-none focus:outline-none focus:border-green-500"
+                            />
+                            <button
+                              onClick={handleEncrypt}
+                              className="w-full bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Lock />
+                              Cifrar con AES
+                            </button>
+                            {encryptedMessage && (
+                              <div className="mt-4 p-4 bg-white rounded border-2 border-green-300">
+                                <p className="text-xs text-gray-500 mb-1">Mensaje cifrado:</p>
+                                <p className="font-mono text-sm break-all text-green-700">{encryptedMessage}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="bg-purple-50 rounded-lg p-6">
+                            <h3 className="text-xl font-semibold text-purple-800 mb-4 flex items-center gap-2">
+                              <Unlock />
+                              Descifrar Mensaje
+                            </h3>
+                            <div className="p-4 bg-white rounded border-2 border-purple-300 mb-4 h-24 overflow-auto">
+                              <p className="text-xs text-gray-500 mb-1">Mensaje cifrado recibido:</p>
+                              <p className="font-mono text-sm break-all text-gray-700">
+                                {encryptedMessage || 'Esperando mensaje cifrado...'}
+                              </p>
+                            </div>
+                            <button
+                              onClick={handleDecrypt}
+                              disabled={!encryptedMessage}
+                              className="w-full bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                              <Unlock />
+                              Descifrar con Clave
+                            </button>
+                            {decryptedMessage && (
+                              <div className="mt-4 p-4 bg-white rounded border-2 border-purple-300">
+                                <p className="text-xs text-gray-500 mb-1">Mensaje original:</p>
+                                <p className="text-lg font-semibold text-purple-700">{decryptedMessage}</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4">
+                          <p className="text-sm text-gray-700">
+                            <strong>💡 Concepto:</strong> El cifrado simétrico (como AES) usa la misma clave
+                            para cifrar y descifrar. Es rápido pero requiere compartir la clave de forma segura.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeTab === 'diffie-hellman' && (
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                          Intercambio de Claves Diffie-Hellman
+                        </h2>
+                        <p className="text-gray-600 mb-6">
+                          Simula cómo dos partes pueden generar una clave compartida sin enviarla por la red.
+                        </p>
+
+                        <button
+                          onClick={simulateDH}
+                          className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors mb-6 flex items-center gap-2"
+                        >
+                          <Key />
+                          Generar Intercambio de Claves
+                        </button>
+
+                        {dhValues && (
+                          <div className="space-y-6">
+                            <div className="bg-gray-50 rounded-lg p-6">
+                              <h3 className="font-semibold text-gray-800 mb-4">1. Valores Públicos (visibles para todos)</h3>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-white p-4 rounded border-2 border-gray-300">
+                                  <p className="text-sm text-gray-600">Generador (g)</p>
+                                  <p className="text-2xl font-bold text-indigo-600">{dhValues.g}</p>
+                                </div>
+                                <div className="bg-white p-4 rounded border-2 border-gray-300">
+                                  <p className="text-sm text-gray-600">Primo (n)</p>
+                                  <p className="text-2xl font-bold text-indigo-600">{dhValues.n}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-6">
+                              <div className="bg-pink-50 rounded-lg p-6">
+                                <h3 className="font-semibold text-pink-800 mb-4 flex items-center gap-2">
+                                  <User />
+                                  Alice
+                                </h3>
+                                <div className="space-y-3">
+                                  <div className="bg-white p-3 rounded border border-pink-300">
+                                    <p className="text-xs text-gray-600">Secreto privado (x)</p>
+                                    <p className="text-xl font-bold text-pink-700">{dhValues.aliceSecret}</p>
+                                  </div>
+                                  <div className="bg-white p-3 rounded border border-pink-300">
+                                    <p className="text-xs text-gray-600">Valor público (g^x mod n)</p>
+                                    <p className="text-xl font-bold text-pink-700">{dhValues.alicePublic}</p>
+                                  </div>
+                                  <div className="bg-pink-100 p-3 rounded border-2 border-pink-500">
+                                    <p className="text-xs text-gray-600">🔑 Clave compartida</p>
+                                    <p className="text-2xl font-bold text-pink-900">{dhValues.aliceShared}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="bg-blue-50 rounded-lg p-6">
+                                <h3 className="font-semibold text-blue-800 mb-4 flex items-center gap-2">
+                                  <User />
+                                  Bob
+                                </h3>
+                                <div className="space-y-3">
+                                  <div className="bg-white p-3 rounded border border-blue-300">
+                                    <p className="text-xs text-gray-600">Secreto privado (y)</p>
+                                    <p className="text-xl font-bold text-blue-700">{dhValues.bobSecret}</p>
+                                  </div>
+                                  <div className="bg-white p-3 rounded border border-blue-300">
+                                    <p className="text-xs text-gray-600">Valor público (g^y mod n)</p>
+                                    <p className="text-xl font-bold text-blue-700">{dhValues.bobPublic}</p>
+                                  </div>
+                                  <div className="bg-blue-100 p-3 rounded border-2 border-blue-500">
+                                    <p className="text-xs text-gray-600">🔑 Clave compartida</p>
+                                    <p className="text-2xl font-bold text-blue-900">{dhValues.bobShared}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {dhValues.aliceShared === dhValues.bobShared && (
+                              <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4 flex items-center gap-3">
+                                <CheckCircle />
+                                <div>
+                                  <p className="font-bold text-green-800">¡Las claves coinciden!</p>
+                                  <p className="text-sm text-green-700">
+                                    Ambos llegaron a la misma clave compartida sin transmitirla por la red
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="mt-6 bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                          <p className="text-sm text-gray-700">
+                            <strong>💡 Concepto:</strong> Diffie-Hellman permite que dos partes generen una
+                            clave secreta compartida sobre un canal inseguro. Solo intercambian valores públicos,
+                            pero ambos calculan la misma clave usando sus secretos privados.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeTab === 'ssl' && (
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                          Establecimiento de Conexión SSL/TLS
+                        </h2>
+                        <p className="text-gray-600 mb-6">
+                          Visualiza los pasos para establecer una conexión segura SSL/TLS.
+                        </p>
+
+                        <div className="mb-6">
+                          <button
+                            onClick={nextSSLStep}
+                            className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-colors"
+                          >
+                            {sslStep === 0 ? 'Iniciar Conexión SSL' : 'Siguiente Paso'}
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {[
+                            { title: 'Cliente envía "Client Hello"', desc: 'El cliente inicia la conexión e informa los cifrados que soporta' },
+                            { title: 'Servidor envía "Server Hello" + Certificado', desc: 'El servidor responde con el cifrado elegido y su certificado con clave pública' },
+                            { title: 'Cliente verifica el certificado', desc: 'El cliente verifica que el certificado sea válido usando la clave pública del CA' },
+                            { title: 'Intercambio de claves (Diffie-Hellman)', desc: 'Cliente y servidor generan una clave simétrica compartida' },
+                            { title: 'Conexión Segura Establecida', desc: 'Todos los datos ahora se cifran con la clave simétrica compartida (AES)' }
+                          ].map((step, index) => (
+                            <div key={index} className={`p-6 rounded-lg border-2 transition-all ${
+                              sslStep > index ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-300 opacity-50'
+                            }`}>
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
+                                  sslStep > index ? 'bg-green-600 text-white' : 'bg-gray-400 text-white'
+                                }`}>{index + 1}</div>
+                                <h3 className="text-lg font-semibold">{step.title}</h3>
+                              </div>
+                              <p className="text-sm text-gray-700 ml-11">{step.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {sslStep === 5 && (
+                          <div className="mt-6 bg-green-100 border-2 border-green-500 rounded-lg p-4 flex items-center gap-3">
+                            <Shield />
+                            <div>
+                              <p className="font-bold text-green-800">🎉 ¡Conexión SSL/TLS Establecida!</p>
+                              <p className="text-sm text-green-700">
+                                La comunicación ahora está cifrada y autenticada
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="mt-6 bg-blue-50 border-l-4 border-blue-400 p-4">
+                          <p className="text-sm text-gray-700">
+                            <strong>💡 Concepto:</strong> SSL/TLS combina autenticación por clave pública,
+                            intercambio seguro de claves y cifrado simétrico para proteger comunicaciones en red.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-8 bg-white rounded-lg shadow-xl p-6">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-3">📚 Conceptos Clave</h3>
+                  <ul className="space-y-2 text-sm text-gray-700">
+                    <li><strong>• Autenticación:</strong> Verificar la identidad de usuarios o sistemas</li>
+                    <li><strong>• Cifrado Simétrico:</strong> Misma clave para cifrar y descifrar (rápido)</li>
+                    <li><strong>• Cifrado Asimétrico:</strong> Clave pública/privada (para autenticación)</li>
+                    <li><strong>• Certificados:</strong> Contienen claves públicas firmadas por autoridades confiables</li>
+                    <li><strong>• SSL/TLS:</strong> Protocolo que combina todos estos conceptos para comunicación segura</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        ReactDOM.render(<DistributedSecurityDemo />, document.getElementById('root'));
+    </script>
+</body>
+</html>
