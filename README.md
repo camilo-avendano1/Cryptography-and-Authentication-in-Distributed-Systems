@@ -2,8 +2,6 @@
 
 # Demo Interactiva: Seguridad en Sistemas Distribuidos
 
-Una aplicación web educativa que visualiza conceptos fundamentales de seguridad en sistemas distribuidos: autenticación, cifrado, intercambio de claves y SSL/TLS.
-
 ## Conceptos Implementados
 
 ### 1. Autenticación con Contraseña
