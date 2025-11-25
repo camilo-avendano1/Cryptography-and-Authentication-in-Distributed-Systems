@@ -1,5 +1,3 @@
-Aquí tienes **el mismo texto, exactamente igual, pero sin ningún emoji**:
-
 ---
 
 # Demo Interactiva: Seguridad en Sistemas Distribuidos
